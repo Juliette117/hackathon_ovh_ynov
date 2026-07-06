@@ -13,7 +13,11 @@ spec:
     spec:
       containers:
         - name: web
+<<<<<<< Updated upstream
           image: nginx:1.14
+=======
+          image: nginx:mainline-alpine
+>>>>>>> Stashed changes
           securityContext:
             privileged: true
             runAsUser: 0
