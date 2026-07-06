@@ -1,0 +1,8 @@
+Workload: hello
+Image scannee: nginx:1.27
+
+Problemes a corriger pour la demonstration:
+- Ajouter un securityContext non-root.
+- Interdire l'escalade de privileges.
+- Ajouter des requests et limits CPU/memoire.
+- Garder un Deployment Kubernetes valide.
