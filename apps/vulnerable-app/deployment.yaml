@@ -13,13 +13,30 @@ spec:
     spec:
       containers:
         - name: web
-<<<<<<< Updated upstream
-          image: nginx:1.14
-=======
           image: nginx:mainline-alpine
->>>>>>> Stashed changes
+          image: nginx:1.27
           securityContext:
-            privileged: true
-            runAsUser: 0
+            runAsUser: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 80
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}

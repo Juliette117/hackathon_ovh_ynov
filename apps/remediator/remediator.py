@@ -1,8 +1,10 @@
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
 
+from github_client import GitHubClient, GitHubConfig, GitHubError
 from ovh_ai import (
     OvhAiClient,
     OvhAiConfig,
@@ -66,6 +68,33 @@ def extract_yaml(ai_text: str) -> str:
     if not match:
         raise OvhAiError("L'IA n'a pas renvoye de bloc ```yaml ... ```.")
     return match.group(1).strip() + "\n"
+
+
+def extract_explanation(ai_text: str) -> str:
+    if "EXPLICATION:" not in ai_text or "YAML:" not in ai_text:
+        return ai_text.strip()
+    return ai_text.split("EXPLICATION:", 1)[1].split("YAML:", 1)[0].strip()
+
+
+def build_github_config() -> GitHubConfig:
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    repo = os.environ.get("GITHUB_REPO", "").strip()
+    base_branch = os.environ.get("GITHUB_BASE_BRANCH", "main").strip() or "main"
+    missing = [
+        name
+        for name, value in (
+            ("GITHUB_TOKEN", token),
+            ("GITHUB_REPO", repo),
+        )
+        if not value
+    ]
+    if missing:
+        raise OvhAiError(
+            "Variables GitHub manquantes: "
+            + ", ".join(missing)
+            + ". Renseignez-les dans apps/remediator/.env."
+        )
+    return GitHubConfig(token=token, repo=repo, base_branch=base_branch)
 
 
 def test_ai(_: argparse.Namespace) -> int:
@@ -138,6 +167,62 @@ def propose_fix(args: argparse.Namespace) -> int:
     return 0
 
 
+def create_pr(args: argparse.Namespace) -> int:
+    manifest_path = Path(args.manifest)
+    manifest = manifest_path.read_text(encoding="utf-8")
+    report = Path(args.report).read_text(encoding="utf-8")
+    repo_path = args.repo_path or str(manifest_path)
+
+    github = GitHubClient(build_github_config())
+    client = OvhAiClient(OvhAiConfig.from_env())
+    ai_text = client.chat(
+        [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": build_fix_prompt(report, manifest)},
+        ],
+        max_tokens=args.max_tokens,
+    )
+    explanation = extract_explanation(ai_text)
+    fixed_yaml = extract_yaml(ai_text)
+
+    base_sha = github.get_branch_sha(args.base_branch)
+    github.upsert_branch(args.branch, base_sha)
+    commit_url = github.update_file(
+        path=repo_path,
+        branch=args.branch,
+        content=fixed_yaml,
+        message=args.commit_message,
+    )
+
+    body = f"""## Correctif propose par l'IA
+
+{explanation}
+
+## Rapport utilise
+
+```text
+{report.strip()}
+```
+
+## Verification humaine
+
+- [ ] Le YAML est valide.
+- [ ] L'image proposee existe.
+- [ ] Les ressources CPU/memoire sont adaptees.
+- [ ] Argo CD resynchronise correctement apres merge.
+
+Commit genere: {commit_url}
+"""
+    pr_url = github.create_pull_request(
+        branch=args.branch,
+        base_branch=args.base_branch,
+        title=args.title,
+        body=body,
+    )
+    print(pr_url)
+    return 0
+
+
 def main() -> int:
     load_dotenv(Path("apps/remediator/.env"))
 
@@ -159,10 +244,30 @@ def main() -> int:
     fix_parser.add_argument("--max-tokens", type=int, default=1800)
     fix_parser.set_defaults(func=propose_fix)
 
+    pr_parser = subparsers.add_parser(
+        "create-pr",
+        help="Genere un correctif IA et ouvre une Pull Request GitHub",
+    )
+    pr_parser.add_argument("--manifest", required=True)
+    pr_parser.add_argument("--report", required=True)
+    pr_parser.add_argument("--repo-path")
+    pr_parser.add_argument("--branch", default="fix/ai-remediation")
+    pr_parser.add_argument("--base-branch", default=os.environ.get("GITHUB_BASE_BRANCH", "main"))
+    pr_parser.add_argument(
+        "--title",
+        default="[IA] Remediation automatique des vulnerabilites",
+    )
+    pr_parser.add_argument(
+        "--commit-message",
+        default="fix(security): remediation automatique proposee par l'IA",
+    )
+    pr_parser.add_argument("--max-tokens", type=int, default=1800)
+    pr_parser.set_defaults(func=create_pr)
+
     args = parser.parse_args()
     try:
         return args.func(args)
-    except OvhAiError as exc:
+    except (OvhAiError, GitHubError) as exc:
         print(f"Erreur: {exc}", file=sys.stderr)
         return 1
 
