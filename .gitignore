@@ -3,6 +3,8 @@ kubeconfig*
 *secret*
 .env
 *.env.*
+.tmp/
+.DS_Store
 
 # notes internes equipe (soutenance, preparation demo) — pas dans le rendu public
 docs/soutenance-notes.md

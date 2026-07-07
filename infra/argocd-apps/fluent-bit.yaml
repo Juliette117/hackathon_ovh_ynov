@@ -6,6 +6,9 @@ metadata:
 spec:
   project: default
   source:
+    # Fluent Bit collecte les logs stdout/stderr des pods sur les nodes. On le
+    # deploie separement de Loki pour garder une architecture lisible:
+    # collecte = Fluent Bit, stockage/recherche = Loki.
     repoURL: https://fluent.github.io/helm-charts
     chart: fluent-bit
     targetRevision: "*"
@@ -16,8 +19,12 @@ spec:
             [OUTPUT]
                 Name loki
                 Match kube.*
+                # Service interne Kubernetes de Loki. Aucune exposition publique
+                # n'est necessaire pour envoyer les logs.
                 Host loki.loki.svc.cluster.local
                 Port 3100
+                # Ces labels sont le coeur de la demonstration: ils permettent
+                # de filtrer dans Grafana par namespace, pod ou conteneur.
                 Labels job=fluent-bit, namespace=$kubernetes['namespace_name'], pod=$kubernetes['pod_name'], container=$kubernetes['container_name']
   destination:
     server: https://kubernetes.default.svc

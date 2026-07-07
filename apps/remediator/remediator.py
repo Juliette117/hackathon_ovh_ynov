@@ -31,6 +31,8 @@ YAML:
 
 
 def load_dotenv(path: Path) -> None:
+    # En local, les tokens restent dans apps/remediator/.env, ignore par Git.
+    # En CI, GitHub Actions injecte les memes valeurs via secrets/variables.
     if not path.exists():
         return
 
@@ -47,6 +49,8 @@ def load_dotenv(path: Path) -> None:
 
 
 def build_fix_prompt(report: str, manifest: str) -> str:
+    # Le prompt donne a l'IA uniquement deux sources: le rapport de securite et
+    # le manifest actuel. Cela limite les corrections hors-sujet.
     return f"""Voici un rapport de securite Kubernetes:
 
 {report}
@@ -64,6 +68,8 @@ CPU/memoire raisonnables si elles manquent.
 
 
 def extract_yaml(ai_text: str) -> str:
+    # On force un bloc YAML explicite pour pouvoir reutiliser la sortie dans une
+    # PR sans parser un texte libre fragile.
     match = re.search(r"```yaml\s*(.*?)```", ai_text, re.DOTALL | re.IGNORECASE)
     if not match:
         raise OvhAiError("L'IA n'a pas renvoye de bloc ```yaml ... ```.")
@@ -77,6 +83,8 @@ def extract_explanation(ai_text: str) -> str:
 
 
 def build_github_config() -> GitHubConfig:
+    # Le script echoue tot si les variables GitHub manquent: c'est plus clair
+    # qu'une erreur 401/403/404 plusieurs appels API plus tard.
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     repo = os.environ.get("GITHUB_REPO", "").strip()
     base_branch = os.environ.get("GITHUB_BASE_BRANCH", "main").strip() or "main"
@@ -125,6 +133,8 @@ def diagnose_ai(_: argparse.Namespace) -> int:
     print(f"URL fournie: {raw_base_url}")
     print()
 
+    # OVH AI Endpoints peut etre fourni avec ou sans suffixe /v1 selon la page
+    # copiee. Le diagnostic teste les variantes utiles pour trouver la route OK.
     for base_url in candidate_base_urls(raw_base_url):
         status, body = probe_chat(base_url, token, model)
         preview = " ".join(body.strip().split())[:240]
@@ -185,6 +195,8 @@ def create_pr(args: argparse.Namespace) -> int:
     explanation = extract_explanation(ai_text)
     fixed_yaml = extract_yaml(ai_text)
 
+    # La branche de correction est recreee depuis la branche cible pour proposer
+    # un diff minimal et eviter d'accumuler d'anciennes propositions IA.
     base_sha = github.get_branch_sha(args.base_branch)
     github.upsert_branch(args.branch, base_sha)
     commit_url = github.update_file(

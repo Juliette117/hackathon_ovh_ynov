@@ -1,0 +1,68 @@
+name: AI remediation PR
+
+# Objectif: transformer un constat de securite en proposition de correction.
+# Le workflow ne merge jamais tout seul: il ouvre une PR pour garder une
+# validation humaine avant qu'Argo CD deploie le changement.
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      manifest_path:
+        description: Kubernetes manifest to fix
+        default: apps/vulnerable-app/deployment.yaml
+        required: true
+      report_path:
+        description: Security report used as remediation context
+        default: apps/remediator/sample-report.txt
+        required: true
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-remediation-pr:
+    name: Create AI remediation pull request
+    runs-on: ubuntu-latest
+    # Evite une boucle: la PR generee pousse sur fix/ai-remediation, ce push ne
+    # doit pas declencher une nouvelle PR identique.
+    if: github.ref_name != 'fix/ai-remediation'
+
+    env:
+      # Le token OVH reste dans les secrets GitHub. Le modele et l'URL peuvent
+      # etre ajustes avec des variables Actions sans modifier le code.
+      OVH_AI_TOKEN: ${{ secrets.OVH_AI_TOKEN }}
+      OVH_AI_BASE_URL: ${{ vars.OVH_AI_BASE_URL || 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1' }}
+      OVH_AI_MODEL: ${{ vars.OVH_AI_MODEL || 'gpt-oss-20b' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPO: ${{ github.repository }}
+      GITHUB_BASE_BRANCH: main
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check required OVH AI secret
+        run: |
+          if [ -z "$OVH_AI_TOKEN" ]; then
+            echo "OVH_AI_TOKEN secret is missing."
+            exit 1
+          fi
+
+      - name: Create remediation pull request
+        run: |
+          # Par defaut, on corrige l'application GitOps principale. Les inputs
+          # permettent de rejouer la meme procedure sur un autre manifest.
+          MANIFEST_PATH="${{ github.event.inputs.manifest_path || 'apps/vulnerable-app/deployment.yaml' }}"
+          REPORT_PATH="${{ github.event.inputs.report_path || 'apps/remediator/sample-report.txt' }}"
+
+          python3 apps/remediator/remediator.py create-pr \
+            --manifest "$MANIFEST_PATH" \
+            --report "$REPORT_PATH" \
+            --repo-path "$MANIFEST_PATH" \
+            --branch fix/ai-remediation \
+            --base-branch "$GITHUB_BASE_BRANCH"

@@ -27,6 +27,8 @@ SEVERITY_ORDER = {
 
 
 def run_kubectl(kubeconfig: str, args: list[str]) -> dict:
+    # Le rapport est volontairement genere depuis Kubernetes, pas depuis un
+    # fichier local, pour representer l'etat reel observe par Trivy Operator.
     command = ["kubectl"]
     if kubeconfig:
         command.extend(["--kubeconfig", kubeconfig])
@@ -58,14 +60,48 @@ def get_timestamp(item: dict) -> str:
     )
 
 
-def find_latest_report(data: dict, workload: str) -> dict:
+def image_from_report(item: dict) -> str:
+    artifact = item.get("report", {}).get("artifact", {})
+    repository = artifact.get("repository", "")
+    tag = artifact.get("tag", "")
+    if not repository or not tag:
+        return ""
+    return f"{repository}:{tag}"
+
+
+def normalize_image(value: str) -> str:
+    # Kubernetes peut declarer "nginx:1.27" alors que Trivy reporte
+    # "library/nginx:1.27". Cette normalisation evite de confondre un ancien
+    # rapport avec le scan de l'image actuellement attendue.
+    image = value.strip()
+    if not image:
+        return ""
+    if ":" not in image.rsplit("/", 1)[-1]:
+        image = f"{image}:latest"
+    if "/" not in image.split(":", 1)[0]:
+        image = f"library/{image}"
+    return image
+
+
+def report_matches_image(item: dict, expected_image: str) -> bool:
+    if not expected_image:
+        return True
+    return normalize_image(image_from_report(item)) == normalize_image(expected_image)
+
+
+def find_latest_report(data: dict, workload: str, expected_image: str = "") -> dict:
+    # Plusieurs ReplicaSets peuvent coexister apres des rollouts. On filtre donc
+    # par workload puis, si fourni, par image attendue avant de prendre le scan le
+    # plus recent.
     items = [
         item
         for item in data.get("items", [])
         if workload in item.get("metadata", {}).get("name", "")
+        and report_matches_image(item, expected_image)
     ]
     if not items:
-        raise RuntimeError(f"Aucun VulnerabilityReport trouve pour {workload}.")
+        suffix = f" et l'image {expected_image}" if expected_image else ""
+        raise RuntimeError(f"Aucun VulnerabilityReport trouve pour {workload}{suffix}.")
     return sorted(items, key=get_timestamp)[-1]
 
 
@@ -87,6 +123,8 @@ def format_date(value: str) -> str:
 
 
 def top_vulnerabilities(report: dict, limit: int = 12) -> list[dict]:
+    # Le HTML doit rester lisible en soutenance: on montre les vulnerabilites les
+    # plus urgentes, triees par severite, au lieu de noyer le lecteur.
     vulnerabilities = report.get("report", {}).get("vulnerabilities", [])
     return sorted(
         vulnerabilities,
@@ -417,6 +455,8 @@ kubectl --kubeconfig infra/kubeconfig.yaml get vulnerabilityreports,configauditr
 
 
 def write_report(args: argparse.Namespace) -> str:
+    # Trivy Operator expose ses resultats sous forme de CRD Kubernetes:
+    # VulnerabilityReport pour les images, ConfigAuditReport pour les manifests.
     vulnerability_data = run_kubectl(
         args.kubeconfig,
         ["get", "vulnerabilityreports", "-n", args.namespace, "-o", "json"],
@@ -425,7 +465,11 @@ def write_report(args: argparse.Namespace) -> str:
         args.kubeconfig,
         ["get", "configauditreports", "-n", args.namespace, "-o", "json"],
     )
-    vulnerability_report = find_latest_report(vulnerability_data, args.workload)
+    vulnerability_report = find_latest_report(
+        vulnerability_data,
+        args.workload,
+        args.expected_image,
+    )
     config_report = find_latest_config_report(config_data, args.workload)
     content = render_html(
         vulnerability_report,
@@ -445,12 +489,26 @@ def main() -> int:
     parser.add_argument("--namespace", default="demo")
     parser.add_argument("--workload", default="vulnerable-web")
     parser.add_argument("--output", default="docs/artifacts/trivy-report.html")
+    parser.add_argument("--expected-image", default="")
+    parser.add_argument("--wait-timeout", type=int, default=0)
     parser.add_argument("--watch", action="store_true")
     parser.add_argument("--interval", type=int, default=20)
     args = parser.parse_args()
 
     try:
-        last_timestamp = write_report(args)
+        deadline = time.time() + args.wait_timeout
+        while True:
+            try:
+                last_timestamp = write_report(args)
+                break
+            except RuntimeError:
+                # Apres un changement GitOps, Argo CD puis Trivy Operator ont
+                # besoin de temps pour deployer et scanner la nouvelle image.
+                if not args.wait_timeout or time.time() >= deadline:
+                    raise
+                print("Rapport Trivy pas encore disponible, nouvelle tentative...")
+                time.sleep(args.interval)
+
         print(f"Rapport HTML mis a jour: {args.output} ({last_timestamp})")
         if not args.watch:
             return 0
