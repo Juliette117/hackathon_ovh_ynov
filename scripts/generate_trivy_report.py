@@ -195,22 +195,27 @@ def render_html(vulnerability_report: dict, config_report: Optional[dict], names
   <style>
     :root {{
       color-scheme: light;
-      --bg: #f4f7fb;
+      --bg: #f6f8fb;
       --panel: #ffffff;
-      --ink: #162033;
-      --muted: #617086;
-      --line: #d8e0ea;
-      --critical: #9f1239;
-      --high: #dc2626;
-      --medium: #d97706;
-      --low: #2563eb;
-      --unknown: #64748b;
-      --ok: #15803d;
+      --panel-soft: #fbfcfe;
+      --ink: #111827;
+      --muted: #667085;
+      --line: #dde3ec;
+      --line-strong: #c8d1dc;
+      --critical: #b42318;
+      --high: #d92d20;
+      --medium: #b54708;
+      --low: #175cd3;
+      --unknown: #475467;
+      --ok: #067647;
+      --shadow: 0 16px 40px rgb(17 24 39 / 0.08);
     }}
     * {{ box-sizing: border-box; }}
     body {{
       margin: 0;
-      background: var(--bg);
+      background:
+        linear-gradient(180deg, #eef3f8 0, var(--bg) 260px),
+        var(--bg);
       color: var(--ink);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.5;
@@ -218,21 +223,28 @@ def render_html(vulnerability_report: dict, config_report: Optional[dict], names
     main {{
       width: min(1120px, calc(100% - 32px));
       margin: 0 auto;
-      padding: 32px 0 48px;
+      padding: 36px 0 52px;
     }}
-    header {{ display: grid; gap: 14px; margin-bottom: 24px; }}
+    header {{
+      display: grid;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+    }}
     h1, h2, p {{ margin: 0; }}
-    h1 {{ font-size: clamp(2rem, 4vw, 4rem); line-height: 1; letter-spacing: 0; }}
-    h2 {{ font-size: 1.15rem; margin-bottom: 14px; }}
-    .subtitle {{ color: var(--muted); max-width: 820px; font-size: 1.02rem; }}
+    h1 {{ font-size: clamp(2.1rem, 4vw, 3.5rem); line-height: 1; letter-spacing: 0; font-weight: 780; }}
+    h2 {{ font-size: 1rem; margin-bottom: 14px; font-weight: 720; color: #1f2937; }}
+    .subtitle {{ color: var(--muted); max-width: 820px; font-size: 1rem; }}
     .meta {{ display: flex; flex-wrap: wrap; gap: 8px; }}
     .pill {{
       border: 1px solid var(--line);
-      background: #fff;
+      background: rgb(255 255 255 / 0.82);
       border-radius: 999px;
-      padding: 7px 10px;
+      padding: 7px 11px;
       color: var(--muted);
       font-size: 0.86rem;
+      box-shadow: 0 1px 0 rgb(17 24 39 / 0.03);
     }}
     .grid {{ display: grid; gap: 16px; }}
     .cols-5 {{ grid-template-columns: repeat(5, minmax(0, 1fr)); }}
@@ -241,50 +253,71 @@ def render_html(vulnerability_report: dict, config_report: Optional[dict], names
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
-      box-shadow: 0 12px 28px rgb(22 32 51 / 0.06);
+      box-shadow: var(--shadow);
     }}
     .panel {{ padding: 18px; }}
-    .metric {{ padding: 16px; min-height: 124px; display: grid; gap: 10px; align-content: space-between; }}
-    .metric strong {{ font-size: 2.2rem; line-height: 1; }}
-    .metric span {{ color: var(--muted); font-size: 0.9rem; }}
-    .metric.critical {{ border-top: 5px solid var(--critical); }}
-    .metric.high {{ border-top: 5px solid var(--high); }}
-    .metric.medium {{ border-top: 5px solid var(--medium); }}
-    .metric.low {{ border-top: 5px solid var(--low); }}
-    .metric.unknown {{ border-top: 5px solid var(--unknown); }}
+    .metric {{
+      position: relative;
+      padding: 16px;
+      min-height: 112px;
+      display: grid;
+      gap: 10px;
+      align-content: space-between;
+      overflow: hidden;
+    }}
+    .metric::before {{
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: var(--unknown);
+    }}
+    .metric strong {{ font-size: 2rem; line-height: 1; font-weight: 760; }}
+    .metric span {{ color: var(--muted); font-size: 0.82rem; font-weight: 650; text-transform: uppercase; }}
+    .metric.critical::before {{ background: var(--critical); }}
+    .metric.high::before {{ background: var(--high); }}
+    .metric.medium::before {{ background: var(--medium); }}
+    .metric.low::before {{ background: var(--low); }}
+    .metric.unknown::before {{ background: var(--unknown); }}
     .bar-list {{ display: grid; gap: 13px; }}
-    .bar-row {{ display: grid; grid-template-columns: 92px 1fr 44px; gap: 10px; align-items: center; font-size: 0.92rem; }}
-    .track {{ height: 13px; overflow: hidden; background: #e8eef5; border-radius: 999px; }}
+    .bar-row {{ display: grid; grid-template-columns: 92px 1fr 44px; gap: 10px; align-items: center; font-size: 0.9rem; color: #344054; }}
+    .bar-row strong {{ font-variant-numeric: tabular-nums; text-align: right; }}
+    .track {{ height: 10px; overflow: hidden; background: #edf1f6; border-radius: 999px; }}
     .fill {{ height: 100%; border-radius: inherit; }}
     .fill.critical {{ background: var(--critical); }}
     .fill.high {{ background: var(--high); }}
     .fill.medium {{ background: var(--medium); }}
     .fill.low {{ background: var(--low); }}
     .fill.unknown {{ background: var(--unknown); }}
-    table {{ width: 100%; border-collapse: collapse; font-size: 0.92rem; }}
-    th, td {{ padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
-    th {{ color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }}
-    .tag {{ display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 8px; color: #fff; font-size: 0.76rem; font-weight: 700; }}
+    table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }}
+    th, td {{ padding: 11px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
+    th {{ color: var(--muted); font-weight: 700; font-size: 0.74rem; text-transform: uppercase; background: var(--panel-soft); }}
+    th:first-child {{ border-top-left-radius: 6px; }}
+    th:last-child {{ border-top-right-radius: 6px; }}
+    tr:last-child td {{ border-bottom: 0; }}
+    td {{ color: #263244; }}
+    .tag {{ display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 8px; color: #fff; font-size: 0.72rem; font-weight: 760; }}
     .tag.critical {{ background: var(--critical); }}
     .tag.high {{ background: var(--high); }}
     .tag.medium {{ background: var(--medium); }}
     .tag.low {{ background: var(--low); }}
     .tag.unknown {{ background: var(--unknown); }}
     .summary {{ display: grid; gap: 12px; }}
-    .summary-item {{ display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }}
-    .dot {{ width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-weight: 800; font-size: 0.85rem; }}
+    .summary-item {{ display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; color: #344054; }}
+    .dot {{ width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-weight: 800; font-size: 0.78rem; }}
     .dot.risk {{ background: var(--high); }}
     .dot.ok {{ background: var(--ok); }}
     code {{
       display: block;
       overflow-x: auto;
       padding: 12px;
-      background: #101827;
+      background: #111827;
       color: #dbeafe;
       border-radius: 8px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.82rem;
       white-space: pre;
+      border: 1px solid #243044;
     }}
     footer {{ color: var(--muted); margin-top: 20px; font-size: 0.86rem; }}
     @media (max-width: 860px) {{
