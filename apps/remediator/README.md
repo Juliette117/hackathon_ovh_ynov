@@ -59,3 +59,25 @@ La commande :
 6. ouvre une Pull Request, ou réutilise la PR ouverte existante.
 
 Le token GitHub doit avoir les droits `Contents: Read/Write` et `Pull requests: Read/Write` sur le dépôt.
+
+## Automatisation GitHub Actions
+
+Le workflow `.github/workflows/ai-remediation.yml` peut lancer cette commande automatiquement.
+
+Il fonctionne de deux façons :
+
+1. lancement manuel depuis l'onglet GitHub Actions ;
+2. lancement planifié tous les jours à 08:00 UTC.
+
+Secrets/variables à configurer dans GitHub :
+
+```text
+Secrets:
+OVH_AI_TOKEN
+
+Variables:
+OVH_AI_BASE_URL
+OVH_AI_MODEL
+```
+
+Le workflow utilise le `GITHUB_TOKEN` fourni par GitHub Actions pour créer la branche, pousser le correctif et ouvrir la Pull Request. Le dépôt doit autoriser les workflows à écrire dans le repository.

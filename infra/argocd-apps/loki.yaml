@@ -6,6 +6,8 @@ metadata:
 spec:
   project: default
   source:
+    # Loki stocke les logs collectes par Fluent Bit et les rend consultables dans
+    # Grafana avec LogQL.
     repoURL: https://grafana.github.io/helm-charts
     chart: loki-stack
     targetRevision: "*"
@@ -14,8 +16,11 @@ spec:
         loki:
           enabled: true
           persistence:
+            # Desactive pour la demo hackathon: plus simple et plus rapide a
+            # deployer. En production, activer une persistance ou un object store.
             enabled: false
         promtail:
+          # Promtail est desactive car Fluent Bit joue deja le role de collecteur.
           enabled: false
         grafana:
           enabled: false

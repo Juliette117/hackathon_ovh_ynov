@@ -18,6 +18,9 @@ fi
 mkdir -p "$STATE_DIR"
 
 stop_existing() {
+  # Les port-forwards restent en arriere-plan pour garder les interfaces
+  # ouvertes. Avant de relancer la demo, on arrete ceux geres par ce script pour
+  # eviter les collisions de ports.
   if [ -f "$STATE_DIR/pids" ]; then
     while read -r pid; do
       if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
@@ -33,6 +36,8 @@ wait_for_port() {
   local port="$1"
   local name="$2"
 
+  # kubectl port-forward met parfois quelques centaines de millisecondes avant
+  # d'ecouter localement; cette boucle evite d'annoncer une URL trop tot.
   for _ in $(seq 1 20); do
     if nc -z 127.0.0.1 "$port" >/dev/null 2>&1; then
       echo "$name disponible sur http://127.0.0.1:$port"
@@ -53,9 +58,11 @@ start_forward() {
   local log_file="$STATE_DIR/$name.log"
 
   echo "Lancement $name..."
-  kubectl --kubeconfig "$KUBECONFIG_PATH" \
+  # nohup detache le tunnel du shell courant. Sans cela, certains environnements
+  # coupent le port-forward quand la commande qui l'a lance se termine.
+  nohup kubectl --kubeconfig "$KUBECONFIG_PATH" \
     port-forward -n "$namespace" "$target" "$mapping" \
-    > "$log_file" 2>&1 &
+    > "$log_file" 2>&1 < /dev/null &
 
   echo "$!" >> "$STATE_DIR/pids"
   wait_for_port "$port" "$name"

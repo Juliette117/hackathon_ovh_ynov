@@ -4,6 +4,7 @@ metadata:
   name: vulnerable-web
   namespace: demo
 spec:
+  # Deux replicas permettent de montrer un rollout sans interrompre la demo.
   replicas: 2
   selector:
     matchLabels: { app: vulnerable-web }
@@ -11,12 +12,17 @@ spec:
     metadata:
       labels: { app: vulnerable-web }
     spec:
+      # fsGroup autorise nginx non-root a acceder aux volumes montes.
       securityContext:
         fsGroup: 2000
       containers:
         - name: web
+          # Image volontairement plus recente que la version vulnerable de demo.
+          # Trivy Operator scanne cette image et le rapport HTML suit ce tag.
           image: nginx:1.27
           securityContext:
+            # Choix de durcissement minimal: pas root, pas d'escalade de
+            # privileges, filesystem en lecture seule et capabilities supprimees.
             runAsUser: 1000
             runAsGroup: 3000
             runAsNonRoot: true
@@ -25,6 +31,8 @@ spec:
             capabilities:
               drop: ["ALL"]
           resources:
+            # Les requests/limits rendent le comportement plus previsible et
+            # corrigent une mauvaise pratique frequente signalee par les scans.
             requests:
               cpu: 100m
               memory: 128Mi
@@ -36,6 +44,7 @@ spec:
           volumeMounts:
             - name: site
               mountPath: /usr/share/nginx/html
+            # Nginx a besoin d'ecrire dans ces chemins meme avec un rootfs read-only.
             - name: cache
               mountPath: /var/cache/nginx
             - name: run

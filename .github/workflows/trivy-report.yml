@@ -1,0 +1,106 @@
+name: Trivy HTML report
+
+# Objectif: produire un artefact lisible par l'equipe a partir du vrai scan
+# Kubernetes. On ne se base pas uniquement sur le repo: le rapport vient des
+# objets VulnerabilityReport crees par Trivy Operator dans le cluster.
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      # Le workflow commit le HTML genere. Cette exclusion evite une boucle ou
+      # chaque commit de rapport relancerait un nouveau rapport.
+      - docs/artifacts/trivy-report.html
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-report:
+    name: Generate Trivy HTML report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: python -m pip install pyyaml
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          # Le kubeconfig est fourni en secret base64 pour ne jamais le stocker
+          # dans Git. Le fichier est reconstruit uniquement dans le runner.
+          if [ -z "$KUBECONFIG_B64" ]; then
+            echo "KUBECONFIG_B64 secret is missing."
+            exit 1
+          fi
+
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_B64" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Read expected image from Git
+        id: image
+        run: |
+          # On lit l'image attendue dans Git pour eviter de publier un ancien
+          # scan Trivy correspondant a une image qui n'est plus deployee.
+          IMAGE="$(python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          manifest = yaml.safe_load(Path("apps/vulnerable-app/deployment.yaml").read_text())
+          containers = manifest["spec"]["template"]["spec"]["containers"]
+          print(containers[0]["image"])
+          PY
+          )"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "Expected image: $IMAGE"
+
+      - name: Wait for deployed application
+        run: |
+          kubectl rollout status deployment/vulnerable-web -n demo --timeout=180s
+
+      - name: Generate HTML report from Trivy Operator
+        run: |
+          # Le timeout laisse a Trivy Operator le temps de produire le rapport
+          # apres un nouveau deploiement Argo CD.
+          python3 scripts/generate_trivy_report.py \
+            --namespace demo \
+            --workload vulnerable-web \
+            --expected-image "${{ steps.image.outputs.image }}" \
+            --wait-timeout 600 \
+            --interval 20 \
+            --output docs/artifacts/trivy-report.html
+
+      - name: Upload HTML report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-html-report
+          path: docs/artifacts/trivy-report.html
+
+      - name: Commit updated report
+        run: |
+          if git diff --quiet -- docs/artifacts/trivy-report.html; then
+            echo "No Trivy report change to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/artifacts/trivy-report.html
+          git commit -m "docs: update trivy report [skip ci]"
+          git push

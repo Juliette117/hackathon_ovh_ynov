@@ -6,6 +6,8 @@ metadata:
 spec:
   project: default
   source:
+    # Pattern app-of-apps: cette Application gere toutes les autres apps Argo CD
+    # declarees dans infra/argocd-apps.
     repoURL: https://github.com/Juliette117/hackathon_ovh_ynov.git
     targetRevision: main
     path: infra/argocd-apps
@@ -14,5 +16,7 @@ spec:
     namespace: argocd
   syncPolicy:
     automated:
+      # prune supprime les ressources retirees de Git; selfHeal corrige les
+      # modifications faites a la main dans le cluster.
       prune: true
       selfHeal: true

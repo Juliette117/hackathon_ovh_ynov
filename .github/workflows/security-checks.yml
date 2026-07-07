@@ -1,0 +1,103 @@
+name: Security checks
+
+# Objectif: bloquer les erreurs simples avant qu'elles arrivent dans le cluster.
+# Ces controles ne remplacent pas Trivy Operator dans Kubernetes; ils securisent
+# plutot la phase Git/PR avec des checks rapides et reproductibles.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  validate:
+    name: Validate manifests and Python
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validation dependencies
+        run: python -m pip install pyyaml
+
+      - name: Validate YAML syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          import yaml
+
+          # Les manifests Kubernetes et les workflows sont du YAML: une erreur
+          # d'indentation suffit a casser Argo CD ou GitHub Actions.
+          failed = False
+          for path in sorted(Path(".").rglob("*.y*ml")):
+              if ".git" in path.parts:
+                  continue
+              try:
+                  with path.open(encoding="utf-8") as handle:
+                      list(yaml.safe_load_all(handle))
+              except Exception as exc:
+                  failed = True
+                  print(f"YAML invalide: {path}: {exc}")
+
+          if failed:
+              sys.exit(1)
+          print("Tous les fichiers YAML sont valides.")
+          PY
+
+      - name: Compile Python files
+        run: |
+          python -m py_compile \
+            apps/remediator/ovh_ai.py \
+            apps/remediator/github_client.py \
+            apps/remediator/remediator.py \
+            scripts/generate_trivy_report.py
+
+  secret-scan:
+    name: Detect leaked secrets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # Gitleaks lit l'historique Git pour detecter les tokens, kubeconfig
+          # ou mots de passe pousses par erreur.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  trivy-config:
+    name: Trivy config scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Scan Kubernetes and IaC files
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          # Ce scan regarde les mauvaises configurations IaC/Kubernetes dans le
+          # repo. Le scan d'images est volontairement laisse a Trivy Operator,
+          # car lui observe ce qui tourne vraiment dans le cluster.
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          format: table

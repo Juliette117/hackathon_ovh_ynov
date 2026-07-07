@@ -12,6 +12,8 @@ class GitHubError(RuntimeError):
 
 
 def normalize_repo(repo: str) -> str:
+    # L'utilisateur peut fournir owner/repo ou l'URL Git remote. On normalise
+    # pour appeler l'API GitHub avec un format unique.
     repo = repo.strip()
     if repo.startswith("git@github.com:"):
         repo = repo.removeprefix("git@github.com:")
@@ -48,6 +50,8 @@ class GitHubClient:
         self.api_base = f"https://api.github.com/repos/{config.repo}"
 
     def _request(self, method: str, path: str, payload: Optional[dict] = None) -> dict:
+        # Client volontairement base sur la bibliotheque standard: le script peut
+        # tourner dans GitHub Actions sans installer de dependance GitHub.
         data = None
         headers = {
             "Authorization": f"Bearer {self.config.token}",
@@ -82,7 +86,9 @@ class GitHubClient:
         return data["object"]["sha"]
 
     def upsert_branch(self, branch: str, sha: str) -> None:
-        # GET utilise /git/ref/... (singulier), PATCH exige /git/refs/... (pluriel)
+        # GET utilise /git/ref/... (singulier), PATCH exige /git/refs/... (pluriel).
+        # Si la branche existe deja, on la replace sur la base courante pour que
+        # la PR automatique reste lisible et rejouable.
         try:
             self._request("GET", f"/git/ref/heads/{urllib.parse.quote(branch)}")
         except GitHubError as exc:
@@ -137,6 +143,8 @@ class GitHubClient:
         title: str,
         body: str,
     ) -> str:
+        # Si une PR de remediation existe deja, on la reutilise au lieu d'en
+        # creer une nouvelle a chaque scan/push.
         existing = self.find_open_pr(branch, base_branch)
         if existing:
             return existing
