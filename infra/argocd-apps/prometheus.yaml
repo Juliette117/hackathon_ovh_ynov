@@ -19,6 +19,12 @@ spec:
               access: proxy
               url: http://loki.loki.svc.cluster.local:3100
               isDefault: false
+          dashboards:
+            default:
+              trivy-operator:
+                gnetId: 17813
+                revision: 2
+                datasource: Prometheus
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
