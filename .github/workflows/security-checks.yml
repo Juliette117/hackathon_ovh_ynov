@@ -89,23 +89,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # On installe le binaire Trivy directement plutot que via trivy-action :
-      # l'etape setup-trivy de l'action echouait de facon aleatoire dans les
-      # runners. Version epinglee pour rester reproductible.
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b "$HOME/.local/bin" v0.65.0
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
+      # v0.20.0 epinglee volontairement : cette version embarque le binaire
+      # Trivy dans son image Docker. Les versions recentes (v0.33+) le
+      # telechargent depuis GitHub au lancement, ce qui echoue aleatoirement
+      # (rate-limit) sur les runners partages.
       - name: Scan Kubernetes and IaC files
-        run: |
+        uses: aquasecurity/trivy-action@v0.20.0
+        with:
           # Ce scan regarde les mauvaises configurations IaC/Kubernetes dans le
-          # repo. Le scan d'images est volontairement laisse a Trivy Operator.
-          # docs/ contient les artefacts de demo volontairement vulnerables :
-          # ils ne doivent pas bloquer la CI.
-          trivy config . \
-            --severity CRITICAL,HIGH \
-            --exit-code 1 \
-            --skip-dirs docs \
-            --ignorefile .trivyignore
+          # repo. Le scan d'images est volontairement laisse a Trivy Operator,
+          # car lui observe ce qui tourne vraiment dans le cluster.
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          # docs/ contient les artefacts de demo volontairement vulnerables
+          # (deployment-vulnerable.yaml) : ils ne doivent pas bloquer la CI.
+          skip-dirs: docs
+          trivyignores: .trivyignore
+          ignore-unfixed: true
+          format: table
