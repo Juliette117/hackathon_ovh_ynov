@@ -11,15 +11,19 @@ spec:
     metadata:
       labels: { app: vulnerable-web }
     spec:
+      securityContext:
+        fsGroup: 2000
       containers:
         - name: web
           image: nginx:1.27
           securityContext:
             runAsUser: 1000
             runAsGroup: 3000
-            fsGroup: 2000
+            runAsNonRoot: true
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 100m
@@ -32,7 +36,15 @@ spec:
           volumeMounts:
             - name: site
               mountPath: /usr/share/nginx/html
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
       volumes:
         - name: site
           configMap:
             name: portail-site
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
