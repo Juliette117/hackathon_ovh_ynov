@@ -49,6 +49,4 @@ graph TD
 *   **Remédiation par IA (Script `remediator` + OVH AI Endpoints)** : Notre script Python prend un rapport de sécurité, le soumet à une IA avec le manifeste actuel, et récupère une proposition de correctif.
 *   **Validation "Human-in-the-loop"** : L'IA ne merge jamais automatiquement. Elle crée une Pull Request détaillée que l'équipe doit valider. C'est notre garde-fou essentiel.
 *   **Déploiement sécurisé (Argo Rollouts)** : Le correctif est déployé progressivement (canary) pour s'assurer qu'il ne casse pas l'application.
-*   **Observabilité complète (Prometheus, Grafana, Loki)** : Nous surveillons l'état de la sécurité et la santé de l'application en temps réel.
-
-
+*   **Observabilité unifiée (OpenTelemetry, Prometheus, Grafana)** : Nous collectons, traitons et visualisons les métriques et les logs pour surveiller la sécurité et la santé de l'application.
