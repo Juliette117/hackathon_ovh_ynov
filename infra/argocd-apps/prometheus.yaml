@@ -13,6 +13,12 @@ spec:
       values: |
         grafana:
           adminPassword: "hackathon2026"
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki.loki.svc.cluster.local:3100
+              isDefault: false
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
