@@ -13,34 +13,9 @@ spec:
     spec:
       containers:
         - name: web
-          image: nginx:1.27
+          image: nginx:1.14
           securityContext:
-            runAsUser: 1000
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
+            privileged: true
+            runAsUser: 0
           ports:
             - containerPort: 80
-          volumeMounts:
-            - name: cache
-              mountPath: /var/cache/nginx
-            - name: run
-              mountPath: /var/run
-            - name: site
-              mountPath: /usr/share/nginx/html
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
-      volumes:
-        - name: cache
-          emptyDir: {}
-        - name: run
-          emptyDir: {}
-        - name: site
-          configMap:
-            name: portail-site
