@@ -82,9 +82,9 @@ class GitHubClient:
         return data["object"]["sha"]
 
     def upsert_branch(self, branch: str, sha: str) -> None:
-        ref_path = f"/git/ref/heads/{urllib.parse.quote(branch)}"
+        # GET utilise /git/ref/... (singulier), PATCH exige /git/refs/... (pluriel)
         try:
-            self._request("GET", ref_path)
+            self._request("GET", f"/git/ref/heads/{urllib.parse.quote(branch)}")
         except GitHubError as exc:
             if "HTTP 404" not in str(exc):
                 raise
@@ -95,7 +95,11 @@ class GitHubClient:
             )
             return
 
-        self._request("PATCH", ref_path, {"sha": sha, "force": True})
+        self._request(
+            "PATCH",
+            f"/git/refs/heads/{urllib.parse.quote(branch)}",
+            {"sha": sha, "force": True},
+        )
 
     def get_file_sha(self, path: str, branch: str) -> str:
         encoded_path = urllib.parse.quote(path)
