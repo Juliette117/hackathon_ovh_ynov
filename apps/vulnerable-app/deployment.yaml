@@ -18,7 +18,7 @@ spec:
         fsGroup: 2000
       containers:
         - name: web
-          image: nginx:1.27.3
+          image: nginx:1.27.3-alpine
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsUser: 1000
