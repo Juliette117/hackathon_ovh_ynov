@@ -11,7 +11,6 @@ spec:
     metadata:
       labels: { app: vulnerable-web }
     spec:
-      # Pod‑level security context pour garantir un utilisateur non‑root
       podSecurityContext:
         runAsUser: 1000
         runAsNonRoot: true
