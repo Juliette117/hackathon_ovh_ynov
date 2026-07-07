@@ -1,3 +1,9 @@
+# Version VULNERABLE du portail patient-medecin — pour rejouer la demo.
+# NE PAS placer ce fichier dans apps/ (Argo CD le deploierait).
+# Usage pendant la demo :
+#   cp docs/demo/deployment-vulnerable.yaml apps/vulnerable-app/deployment.yaml
+#   git commit -am "demo: reintroduction de la faille" && git push
+# Failles volontaires : image 2018 (CVE), conteneur privilegie, root, aucune limite.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -11,39 +17,21 @@ spec:
     metadata:
       labels: { app: vulnerable-web }
     spec:
-      securityContext:
-        fsGroup: 2000
       containers:
         - name: web
-          image: nginx:1.27
+          # FAILLE 1 : image de 2018, des dizaines de CVE connues
+          image: nginx:1.14
+          # FAILLE 2 : conteneur privilegie = acces quasi-root au node
           securityContext:
-            runAsUser: 1000
-            runAsGroup: 3000
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
+            privileged: true
+            runAsUser: 0 # FAILLE 3 : tourne en root
+          # FAILLE 4 : aucune limite CPU/memoire
           ports:
             - containerPort: 80
           volumeMounts:
             - name: site
               mountPath: /usr/share/nginx/html
-            - name: cache
-              mountPath: /var/cache/nginx
-            - name: run
-              mountPath: /var/run
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
       volumes:
         - name: site
           configMap:
             name: portail-site
-        - name: cache
-          emptyDir: {}
-        - name: run
-          emptyDir: {}
