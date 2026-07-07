@@ -13,7 +13,6 @@ spec:
     spec:
       containers:
         - name: web
-          image: nginx:mainline-alpine
           image: nginx:1.27
           securityContext:
             runAsUser: 1000
@@ -28,6 +27,8 @@ spec:
               mountPath: /var/cache/nginx
             - name: run
               mountPath: /var/run
+            - name: site
+              mountPath: /usr/share/nginx/html
           resources:
             requests:
               cpu: 100m
@@ -40,3 +41,6 @@ spec:
           emptyDir: {}
         - name: run
           emptyDir: {}
+        - name: site
+          configMap:
+            name: portail-site

@@ -3,3 +3,8 @@ kubeconfig*
 *secret*
 .env
 *.env.*
+
+# notes internes equipe (soutenance, preparation demo) — pas dans le rendu public
+docs/soutenance-notes.md
+docs/demo/runbook-demo.md
+docs/prive/

@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portail-site
+  namespace: demo
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Portail Patient - Médecin</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: #f4f7fa; color: #1f2d3d; }
+        header { background: linear-gradient(135deg, #1a5fb4, #3584e4); color: white; padding: 28px 40px; }
+        header h1 { font-size: 26px; }
+        header p { opacity: .85; margin-top: 4px; }
+        .container { max-width: 900px; margin: 32px auto; padding: 0 20px; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+        .card { background: white; border-radius: 10px; padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+        .card h2 { font-size: 16px; color: #1a5fb4; margin-bottom: 10px; }
+        .card p, .card li { font-size: 14px; color: #4a5a6a; line-height: 1.5; list-style: none; }
+        .rdv { border-left: 3px solid #3584e4; padding-left: 10px; margin: 8px 0; }
+        .badge { display: inline-block; background: #e8f0fb; color: #1a5fb4; font-size: 12px;
+                 padding: 3px 10px; border-radius: 12px; margin-top: 6px; }
+        footer { text-align: center; padding: 24px; font-size: 12px; color: #8a9aa8; }
+      </style>
+    </head>
+    <body>
+      <header>
+        <h1>🩺 Portail Patient – Médecin</h1>
+        <p>Prenez rendez-vous et échangez avec votre médecin en ligne</p>
+      </header>
+      <div class="container">
+        <div class="cards">
+          <div class="card">
+            <h2>Mes rendez-vous</h2>
+            <div class="rdv"><strong>Dr Martin</strong> — Généraliste<br>Jeudi 9 juillet, 14h30</div>
+            <div class="rdv"><strong>Dr Nguyen</strong> — Dermatologue<br>Mardi 15 juillet, 09h00</div>
+            <span class="badge">2 rendez-vous à venir</span>
+          </div>
+          <div class="card">
+            <h2>Mes messages</h2>
+            <li>Dr Martin : "Vos résultats sont bons."</li>
+            <li>Secrétariat : "Rappel de votre RDV jeudi."</li>
+            <span class="badge">1 message non lu</span>
+          </div>
+          <div class="card">
+            <h2>Mes ordonnances</h2>
+            <li>Ordonnance du 12/06 — renouvelable</li>
+            <li>Ordonnance du 28/06</li>
+            <span class="badge">2 documents</span>
+          </div>
+        </div>
+      </div>
+      <footer>
+        Portail Patient-Médecin — démo hackathon OVHcloud × Ynov · données entièrement fictives<br>
+        Workload cible de la chaîne d'audit et de remédiation GitOps
+      </footer>
+    </body>
+    </html>
