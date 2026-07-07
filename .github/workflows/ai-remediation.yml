@@ -5,6 +5,11 @@ name: AI remediation PR
 # validation humaine avant qu'Argo CD deploie le changement.
 on:
   push:
+    # Ne se declenche que si le workload change : c'est le scenario de la
+    # boucle (une faille arrive dans le manifest -> l'IA propose une PR).
+    # Evite les PR parasites a chaque push de doc ou de CI.
+    paths:
+      - "apps/vulnerable-app/**"
   workflow_dispatch:
     inputs:
       manifest_path:
