@@ -33,7 +33,9 @@ jobs:
       OVH_AI_TOKEN: ${{ secrets.OVH_AI_TOKEN }}
       OVH_AI_BASE_URL: ${{ vars.OVH_AI_BASE_URL || 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1' }}
       OVH_AI_MODEL: ${{ vars.OVH_AI_MODEL || 'gpt-oss-20b' }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # GH_PAT est optionnel. Il sert si le repository interdit au token
+      # automatique GitHub Actions de creer des pull requests.
+      GITHUB_TOKEN: ${{ secrets.GH_PAT || github.token }}
       GITHUB_REPO: ${{ github.repository }}
       GITHUB_BASE_BRANCH: main
 
