@@ -485,7 +485,10 @@ def write_report(args: argparse.Namespace) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Genere un rapport HTML Trivy depuis Kubernetes.")
-    parser.add_argument("--kubeconfig", default="infra/kubeconfig.yaml")
+    # Par defaut : infra/kubeconfig.yaml s'il existe (poste local), sinon la
+    # chaine standard kubectl (KUBECONFIG ou ~/.kube/config — cas CI).
+    default_kubeconfig = "infra/kubeconfig.yaml" if Path("infra/kubeconfig.yaml").exists() else ""
+    parser.add_argument("--kubeconfig", default=default_kubeconfig)
     parser.add_argument("--namespace", default="demo")
     parser.add_argument("--workload", default="vulnerable-web")
     parser.add_argument("--output", default="docs/artifacts/trivy-report.html")
