@@ -1,0 +1,67 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opentelemetry
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # Le Collector OpenTelemetry remplace Fluent Bit pour la collecte et le
+    # traitement des logs, metriques et traces. Il est le standard CNCF pour
+    # l'observabilite.
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.93.0 # Version stable et testee
+    helm:
+      values: |
+        # On deploie le collector en mode DaemonSet pour avoir un agent par noeud.
+        mode: daemonset
+
+        # On deploie Loki comme backend de logs, directement gere par ce chart.
+        # Cela simplifie l'architecture : le collector est le point d'entree,
+        # Loki est le stockage.
+        presets:
+          logsCollection:
+            enabled: true
+          loki:
+            enabled: true
+
+        # Le collector doit pouvoir lire les logs sur les noeuds.
+        daemonSet:
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+          volumes:
+            - name: varlog
+              hostPath:
+                path: /var/log
+            - name: varlibdockercontainers
+              hostPath:
+                path: /var/lib/docker/containers
+            - name: otlp-socket-dir
+              hostPath:
+                path: /var/run/otel-logs
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: otlp-socket-dir
+              mountPath: /var/run/otel-logs
+
+        # On desactive les autres composants non utilises dans cette demo.
+        opentelemetry-operator:
+          enabled: false
+        opentelemetry-targetallocator:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opentelemetry
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
