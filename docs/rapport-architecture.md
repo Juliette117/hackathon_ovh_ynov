@@ -37,7 +37,9 @@ Toute la chaîne tourne sur un cluster Kubernetes managé OVHcloud. La règle qu
 
 **Falco** est notre alarme : là où Trivy et Kyverno analysent des fichiers, Falco regarde ce qui se passe en direct dans les conteneurs. Si quelqu'un ouvre un terminal dans un conteneur ou lit un fichier sensible, il alerte immédiatement. C'est ce qui couvre les attaques en cours, invisibles pour l'analyse statique.
 
-**Prometheus et Grafana** mesurent tout ça : Prometheus collecte le nombre de failles détectées par Trivy, et Grafana l'affiche en graphique. Pendant la démo, on voit littéralement la courbe des failles critiques chuter au moment où la correction est appliquée. On a aussi ajouté Fluent Bit et Loki pour centraliser les logs de toutes les applications au même endroit.
+**Prometheus et Grafana** mesurent tout ça : Prometheus collecte le nombre de failles détectées par Trivy, et Grafana l'affiche en graphique. Pendant la démo, on voit littéralement la courbe des failles critiques chuter au moment où la correction est appliquée.
+
+**Fluent Bit et Loki** ajoutent la partie logs : Fluent Bit tourne sur chaque nœud du cluster et collecte les logs produits par les conteneurs Kubernetes. Il les enrichit avec des labels utiles comme le namespace, le pod et le conteneur, puis les envoie vers Loki. Loki centralise ces logs et permet de les interroger avec LogQL, directement depuis Grafana. Cela permet de passer d'une alerte ou d'un changement de déploiement à la preuve opérationnelle : est-ce que l'application logue encore correctement après correction ? est-ce qu'un pod génère des erreurs ? est-ce qu'un événement de sécurité Falco correspond à des logs applicatifs ?
 
 **AI Endpoints OVHcloud** est le cerveau de la correction : on lui envoie le rapport de failles et le fichier de configuration actuel, il renvoie le fichier corrigé avec une explication en français. Son API parle le même langage que celle d'OpenAI, donc les outils standards fonctionnent directement.
 
@@ -52,6 +54,26 @@ Toute la chaîne tourne sur un cluster Kubernetes managé OVHcloud. La règle qu
 **Une API compatible OpenAI pour l'IA** : plutôt que d'écrire du code spécifique à OVHcloud, on profite du format standard. Résultat : le même code marcherait avec n'importe quel fournisseur, et les tests sont simples.
 
 **La revue humaine avant merge, non négociable** : c'est le garde-fou de toute la chaîne. Une IA peut proposer un fichier invalide ou une image qui n'existe pas — c'est exactement le rôle de la relecture humaine de rattraper ça avant que ça parte en production.
+
+**Fluent Bit + Loki plutôt qu'un stockage de logs lourd** : on voulait une brique rapide à déployer, adaptée à Kubernetes et facile à démontrer. Fluent Bit est léger et standard pour la collecte. Loki évite d'indexer tout le contenu des logs : il indexe surtout les labels, ce qui correspond bien à Kubernetes (`namespace`, `pod`, `container`). Grafana étant déjà présent pour les métriques, l'intégration des logs dans la même interface est naturelle.
+
+Le flux de logs est donc :
+
+```
+Pods Kubernetes
+        │
+        ▼
+Logs stdout/stderr
+        │
+        ▼
+Fluent Bit sur chaque nœud
+        │
+        ▼
+Loki
+        │
+        ▼
+Grafana / LogQL
+```
 
 ## 4. Limites et pistes d'amélioration
 
