@@ -1,0 +1,2 @@
+# nginx ecoute sur le port 80 par design (service web standard derriere un Service ClusterIP)
+AVD-KSV-0117
