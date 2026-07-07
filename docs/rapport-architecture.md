@@ -31,6 +31,8 @@ Toute la chaîne tourne sur un cluster Kubernetes managé OVHcloud. La règle qu
 
 **Argo CD** est le chef d'orchestre : il surveille notre dépôt Git et fait en sorte que le cluster corresponde toujours à ce qui y est écrit. On déploie en faisant un commit, plus rien d'autre. Une application "racine" surveille un dossier du dépôt : ajouter un composant revient à y ajouter un fichier, et Argo CD l'installe tout seul.
 
+**Argo Rollouts** complète Argo CD sur la partie déploiement progressif : Argo CD applique l'état voulu depuis Git, puis Argo Rollouts permet de contrôler comment une nouvelle version arrive réellement en production. Au lieu de remplacer toute l'application d'un coup, on peut faire un canary, un blue/green ou un rollback si la nouvelle version se comporte mal. Dans notre contexte, c'est particulièrement utile après une correction de sécurité : on ne veut pas qu'une image corrigée mais instable casse tout le service.
+
 **Trivy-operator** est notre antivirus : il scanne en continu les images de nos applications et liste les failles connues (les CVE), avec pour chacune la version qui la corrige. Ses rapports sont stockés directement dans le cluster, ce qui permet à notre script de les lire facilement. C'est la matière première de l'IA.
 
 **Kyverno** est notre contrôle qualité : il vérifie chaque application contre trois règles écrites par nous — pas de conteneur privilégié, pas de tag d'image flottant, des limites de ressources obligatoires. Il tourne en mode "signalement" plutôt que "blocage" : s'il bloquait, notre propre application vulnérable ne pourrait pas exister et on n'aurait plus rien à démontrer. Ses violations sont une deuxième source de données pour l'IA.
@@ -54,6 +56,30 @@ Toute la chaîne tourne sur un cluster Kubernetes managé OVHcloud. La règle qu
 **Une API compatible OpenAI pour l'IA** : plutôt que d'écrire du code spécifique à OVHcloud, on profite du format standard. Résultat : le même code marcherait avec n'importe quel fournisseur, et les tests sont simples.
 
 **La revue humaine avant merge, non négociable** : c'est le garde-fou de toute la chaîne. Une IA peut proposer un fichier invalide ou une image qui n'existe pas — c'est exactement le rôle de la relecture humaine de rattraper ça avant que ça parte en production.
+
+**Argo Rollouts pour limiter le risque du correctif** : une correction de vulnérabilité peut remplacer une image, changer un `securityContext` ou modifier des ressources. Même si le correctif est bon côté sécurité, il peut introduire un problème applicatif. Argo Rollouts permet donc de déployer la correction progressivement et de revenir automatiquement à la version précédente si les signaux d'observabilité ne sont pas bons.
+
+Le flux de déploiement sécurisé devient :
+
+```
+Pull Request validée
+        │
+        ▼
+Merge dans Git
+        │
+        ▼
+Argo CD synchronise le manifeste
+        │
+        ▼
+Argo Rollouts déploie progressivement
+        │
+        ▼
+Métriques / logs observés
+        │
+        ├── OK → promotion de la nouvelle version
+        │
+        └── KO → rollback vers la version précédente
+```
 
 **Fluent Bit + Loki plutôt qu'un stockage de logs lourd** : on voulait une brique rapide à déployer, adaptée à Kubernetes et facile à démontrer. Fluent Bit est léger et standard pour la collecte. Loki évite d'indexer tout le contenu des logs : il indexe surtout les labels, ce qui correspond bien à Kubernetes (`namespace`, `pod`, `container`). Grafana étant déjà présent pour les métriques, l'intégration des logs dans la même interface est naturelle.
 
