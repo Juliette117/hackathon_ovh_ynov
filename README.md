@@ -23,7 +23,7 @@ Le flux est le suivant :
 graph TD
     A[1. Détection continue] -- Rapport de failles --> B;
     subgraph Cluster Kubernetes
-        A(Trivy-Operator / Kyverno);
+        A(Applications);
     end
 
     B(2. Remédiateur IA) -- Demande de correction --> C{3. OVH AI Endpoints};
