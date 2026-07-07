@@ -282,18 +282,6 @@ data:
                 <span>Validation medicale terminee</span>
               </div>
             </article>
-
-            <article class="card">
-              <h2>Demo securite</h2>
-              <div class="document">
-                <strong>Workload</strong>
-                <span>namespace demo / deployment vulnerable-web</span>
-              </div>
-              <div class="document">
-                <strong>Remediation</strong>
-                <span>PR automatique proposee apres analyse IA et rapport Trivy</span>
-              </div>
-            </article>
           </aside>
         </section>
 
