@@ -208,7 +208,6 @@ data:
             <div class="mark">PM</div>
             <div>
               <div>Portail Patient-Medecin</div>
-              <small>Demonstrateur GitOps securise</small>
             </div>
           </div>
           <div class="status"><span class="dot"></span> Application supervisee</div>
@@ -227,22 +226,6 @@ data:
               <button class="button secondary">Envoyer un message</button>
             </div>
           </article>
-
-          <aside class="security-panel">
-            <h2>Etat de la chaine de confiance</h2>
-            <div class="check">
-              <div class="icon">G</div>
-              <p><strong>GitOps actif</strong><span>Les changements applicatifs passent par Git puis Argo CD.</span></p>
-            </div>
-            <div class="check">
-              <div class="icon">T</div>
-              <p><strong>Scan Trivy</strong><span>L'image du workload est analysee dans Kubernetes.</span></p>
-            </div>
-            <div class="check">
-              <div class="icon">L</div>
-              <p><strong>Logs centralises</strong><span>Les evenements applicatifs peuvent etre consultes dans Grafana via Loki.</span></p>
-            </div>
-          </aside>
         </section>
 
         <section class="metrics" aria-label="Indicateurs">
